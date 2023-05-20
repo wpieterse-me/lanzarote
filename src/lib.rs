@@ -125,6 +125,8 @@ pub unsafe extern "C" fn vkCreateInstance(
     _allocator: *const AllocationCallbacks,
     instance_handle: *mut InstanceHandle,
 ) -> Result {
+    println!("vkCreateInstance");
+
     if instance_handle.is_null() {
         Result::ErrorInitializationFailed
     } else {
@@ -139,9 +141,13 @@ pub unsafe extern "C" fn vkCreateInstance(
 #[no_mangle]
 pub unsafe extern "C" fn vkEnumerateInstanceExtensionProperties(
     _layer_name: LayerName,
-    _property_count: *mut u32,
+    property_count: *mut u32,
     _properties: *mut ExtensionProperties,
 ) -> Result {
+    println!("vkEnumerateInstanceExtensionProperties");
+
+    *property_count = 0;
+
     Result::Success
 }
 
@@ -150,6 +156,8 @@ pub unsafe extern "C" fn vkDestroyInstance(
     instance_handle: InstanceHandle,
     _allocator: *const AllocationCallbacks,
 ) {
+    println!("vkDestroyInstance");
+
     if instance_handle.0.is_null() == false {
         instance_handle.into_instance();
     }
@@ -168,6 +176,8 @@ pub unsafe extern "C" fn vk_icdGetInstanceProcAddr(
             Ok(s) => s,
             Err(_) => return std::mem::transmute::<*const (), GeneralFn>(std::ptr::null()),
         };
+
+        println!("vk_icdGetInstanceProcAddr : {}", rust_string);
 
         let pointer = match rust_string {
             "vkCreateInstance" => vkCreateInstance as *const (),
