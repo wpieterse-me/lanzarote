@@ -4,13 +4,22 @@ use std::ffi::{c_char, c_void, CStr};
 pub struct FunctionName(*const c_char);
 
 #[repr(transparent)]
+pub struct LayerName(*const c_char);
+
+#[repr(transparent)]
 pub struct Instance(*mut c_void);
 
 type GeneralFn = unsafe extern "C" fn();
 
+#[repr(i32)]
+pub enum StructureType {
+    ApplicationInformation = 0,
+    InstanceCreateInformation = 1,
+}
+
 #[repr(C)]
 pub struct ApplicationInformation {
-    structure_type: u32,
+    structure_type: StructureType,
     next_structure: *const c_void,
     application_name: *const c_char,
     application_version: u32,
@@ -19,11 +28,16 @@ pub struct ApplicationInformation {
     api_version: u32,
 }
 
+#[repr(i32)]
+pub enum InstanceCreateFlags {
+    None = 0,
+}
+
 #[repr(C)]
 pub struct InstanceCreateInformation {
-    structure_type: u32,
+    structure_type: StructureType,
     next_structure: *const c_void,
-    flags: u32,
+    flags: InstanceCreateFlags,
     application_information: *const ApplicationInformation,
     enabled_layer_count: u32,
     enabled_layer_names: *const *const c_char,
@@ -87,7 +101,7 @@ pub unsafe extern "C" fn vkCreateInstance(
 
 #[no_mangle]
 pub unsafe extern "C" fn vkEnumerateInstanceExtensionProperties(
-    _layer_name: *const c_char,
+    _layer_name: LayerName,
     _property_count: *mut u32,
     _properties: *mut ExtensionProperties,
 ) -> Result {
