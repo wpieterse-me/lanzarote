@@ -7,7 +7,7 @@ pub struct FunctionName(*const c_char);
 pub struct LayerName(*const c_char);
 
 #[repr(transparent)]
-pub struct Instance(*mut c_void);
+pub struct InstanceHandle(*mut c_void);
 
 type GeneralFn = unsafe extern "C" fn();
 
@@ -90,13 +90,50 @@ pub enum Result {
     ErrorUnknown = -13,
 }
 
+struct Instance {}
+
+impl Instance {
+    fn new() -> Self {
+        Self {}
+    }
+}
+
+impl InstanceHandle {
+    unsafe fn as_instance(&self) -> &'static mut Instance {
+        let ptr = self.0 as *mut Instance;
+
+        ptr.as_mut().unwrap()
+    }
+
+    unsafe fn into_instance(self) -> Box<Instance> {
+        let ptr = self.0 as *mut Instance;
+
+        Box::from_raw(ptr)
+    }
+
+    fn from_instance(instance: Instance) -> Self {
+        let reference = Box::leak(Box::new(instance));
+        let ptr = reference as *mut Instance;
+
+        Self(ptr as _)
+    }
+}
+
 #[no_mangle]
 pub unsafe extern "C" fn vkCreateInstance(
     _create_information: *const InstanceCreateInformation,
     _allocator: *const AllocationCallbacks,
-    _instance_result: *mut Instance,
+    instance_handle: *mut InstanceHandle,
 ) -> Result {
-    Result::Success
+    if instance_handle.is_null() {
+        Result::ErrorInitializationFailed
+    } else {
+        let instance = Instance::new();
+
+        *instance_handle = InstanceHandle::from_instance(instance);
+
+        Result::Success
+    }
 }
 
 #[no_mangle]
@@ -109,30 +146,38 @@ pub unsafe extern "C" fn vkEnumerateInstanceExtensionProperties(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn vk_icdGetInstanceProcAddr(
-    _instance: Instance,
-    function_name: FunctionName,
-) -> Option<GeneralFn> {
-    if function_name.0.is_null() {
-        return None;
+pub unsafe extern "C" fn vkDestroyInstance(
+    instance_handle: InstanceHandle,
+    _allocator: *const AllocationCallbacks,
+) {
+    if instance_handle.0.is_null() == false {
+        instance_handle.into_instance();
     }
+}
 
-    let c_string = CStr::from_ptr(function_name.0);
-    let rust_string = match c_string.to_str() {
-        Ok(s) => s,
-        Err(_) => return None,
-    };
+#[no_mangle]
+pub unsafe extern "C" fn vk_icdGetInstanceProcAddr(
+    _instance: InstanceHandle,
+    function_name: FunctionName,
+) -> GeneralFn {
+    if function_name.0.is_null() {
+        std::mem::transmute::<*const (), GeneralFn>(std::ptr::null())
+    } else {
+        let c_string = CStr::from_ptr(function_name.0);
+        let rust_string = match c_string.to_str() {
+            Ok(s) => s,
+            Err(_) => return std::mem::transmute::<*const (), GeneralFn>(std::ptr::null()),
+        };
 
-    println!("CALLING : {}", rust_string);
-    match rust_string {
-        "vkCreateInstance" => {
-            let pointer = vkCreateInstance as *const ();
-            Some(std::mem::transmute::<*const (), GeneralFn>(pointer))
-        }
-        "vkEnumerateInstanceExtensionProperties" => {
-            let pointer = vkEnumerateInstanceExtensionProperties as *const ();
-            Some(std::mem::transmute::<*const (), GeneralFn>(pointer))
-        }
-        _ => None,
+        let pointer = match rust_string {
+            "vkCreateInstance" => vkCreateInstance as *const (),
+            "vkDestroyInstance" => vkDestroyInstance as *const (),
+            "vkEnumerateInstanceExtensionProperties" => {
+                vkEnumerateInstanceExtensionProperties as *const ()
+            }
+            _ => std::ptr::null(),
+        };
+
+        std::mem::transmute::<*const (), GeneralFn>(pointer)
     }
 }
