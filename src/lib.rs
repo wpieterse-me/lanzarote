@@ -53,13 +53,36 @@ pub struct ExtensionProperties {
     specification_version: u32,
 }
 
+#[repr(i32)]
+pub enum Result {
+    Success = 0,
+    NotReady = 1,
+    Timeout = 2,
+    EventSet = 3,
+    EventReset = 4,
+    Incomplete = 5,
+    ErrorOutOfHostMemory = -1,
+    ErrorOutOfDeviceMemory = -2,
+    ErrorInitializationFailed = -3,
+    ErrorDeviceLost = -4,
+    ErrorMemoryMapFailed = -5,
+    ErrorLayerNotPresent = -6,
+    ErrorExtensionNotPresent = -7,
+    ErrorFeatureNotPresent = -8,
+    ErrorIncompatibleDriver = -9,
+    ErrorTooManyObject = -10,
+    ErrorFormatNotSupported = -11,
+    ErrorFragmentedPool = -12,
+    ErrorUnknown = -13,
+}
+
 #[no_mangle]
 pub unsafe extern "C" fn vkCreateInstance(
     _create_information: *const InstanceCreateInformation,
     _allocator: *const AllocationCallbacks,
     _instance_result: *mut Instance,
-) -> u32 {
-    0
+) -> Result {
+    Result::Success
 }
 
 #[no_mangle]
@@ -67,8 +90,8 @@ pub unsafe extern "C" fn vkEnumerateInstanceExtensionProperties(
     _layer_name: *const c_char,
     _property_count: *mut u32,
     _properties: *mut ExtensionProperties,
-) -> u32 {
-    0
+) -> Result {
+    Result::Success
 }
 
 #[no_mangle]
