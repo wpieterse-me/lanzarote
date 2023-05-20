@@ -47,11 +47,26 @@ pub struct AllocationCallbacks {
     internal_free: InternalFreeNotification,
 }
 
+#[repr(C)]
+pub struct ExtensionProperties {
+    name: [c_char; 256],
+    specification_version: u32,
+}
+
 #[no_mangle]
 pub unsafe extern "C" fn vkCreateInstance(
     _create_information: *const InstanceCreateInformation,
     _allocator: *const AllocationCallbacks,
     _instance_result: *mut Instance,
+) -> u32 {
+    0
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn vkEnumerateInstanceExtensionProperties(
+    _layer_name: *const c_char,
+    _property_count: *mut u32,
+    _properties: *mut ExtensionProperties,
 ) -> u32 {
     0
 }
@@ -75,7 +90,11 @@ pub unsafe extern "C" fn vk_icdGetInstanceProcAddr(
     match rust_string {
         "vkCreateInstance" => {
             let pointer = vkCreateInstance as *const ();
-            Some(unsafe { std::mem::transmute::<*const (), GeneralFn>(pointer) })
+            Some(std::mem::transmute::<*const (), GeneralFn>(pointer))
+        }
+        "vkEnumerateInstanceExtensionProperties" => {
+            let pointer = vkEnumerateInstanceExtensionProperties as *const ();
+            Some(std::mem::transmute::<*const (), GeneralFn>(pointer))
         }
         _ => None,
     }
